@@ -1,0 +1,23 @@
+# Rust / Stylus
+/contracts/stylus/target/
+Cargo.lock
+
+# Solidity / Foundry
+/contracts/solidity/out/
+/contracts/solidity/cache/
+/contracts/solidity/broadcast/
+
+# Node / frontend
+/frontend/node_modules/
+/frontend/dist/
+/frontend/.vite/
+
+# Secrets, never commit these
+.env
+.env.local
+*.pem
+*.key
+
+# OS/editor noise
+.DS_Store
+.vscode/

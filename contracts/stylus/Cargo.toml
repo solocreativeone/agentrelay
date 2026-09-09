@@ -1,0 +1,30 @@
+[package]
+name = "agentrelay-validation"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+alloy-primitives = "1.5.7"
+alloy-sol-types = "1.5.7"
+stylus-sdk = "0.10.9"
+k256 = { version = "0.13", default-features = false, features = ["arithmetic", "ecdsa", "std"] }
+getrandom = { version = "0.2", default-features = false, features = ["custom"] }
+
+[lib]
+crate-type = ["lib", "cdylib"]
+
+[features]
+default = ["mini-alloc"]
+export-abi = ["stylus-sdk/export-abi"]
+debug = ["stylus-sdk/debug"]
+mini-alloc = ["stylus-sdk/mini-alloc"]
+stylus-test = ["stylus-sdk/stylus-test"]
+contract-client-gen = []
+
+[profile.release]
+codegen-units = 1
+strip = true
+lto = true
+panic = "abort"
+# If binary size becomes an issue, try "s" or "z" here instead.
+opt-level = 3
