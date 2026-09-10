@@ -48,9 +48,12 @@ progress.
 
 ## Deployed contracts (Arbitrum Sepolia)
 
-| Contract            | Address                                        |
-|---------------------|------------------------------------------------|
-| ValidationContract  | `0xbf795a0cd8403a4802be33f1efb53836fb89632b`   |
+| Contract               | Address                                       |
+|------------------------|-----------------------------------------------|
+| AgentRelayIdentity     | `0x36953CbD5745291de7B91ce126eD238340c79434`  |
+| AgentRelayEscrow       | `0x0B14D5bB0244A1D0A291318A9bf298579928a2C3`  |
+| AgentRelayReputation   | `0x6F4da14334DAc0619838c74168E5A5aDAfd3C076`  |
+| ValidationContract     | `0xBF795A0cD8403A4802be33F1EFB53836FB89632B`  |
 
 ## Standards referenced
 
