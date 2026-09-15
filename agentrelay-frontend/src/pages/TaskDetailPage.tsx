@@ -114,6 +114,25 @@ export function TaskDetailPage({ taskId, onBack }: { taskId: bigint; onBack: () 
     }
   };
 
+  // Marks a task Disputed instead of validating it, for when the proof is
+  // present but wrong. Note: this only changes status, it does not refund
+  // the escrowed bounty, which stays locked in the contract. That is a
+  // real limitation of the current contract, not a frontend choice.
+  const handleDispute = async () => {
+    setIsWorking(true);
+    try {
+      await writeContractAsync({
+        address: CONTRACTS.escrow,
+        abi: escrowAbi,
+        functionName: 'disputeTask',
+        args: [task.taskId],
+      });
+      await refetch();
+    } finally {
+      setIsWorking(false);
+    }
+  };
+
   return (
     <div>
       <BackLink onBack={onBack} />
@@ -216,14 +235,25 @@ export function TaskDetailPage({ taskId, onBack }: { taskId: bigint; onBack: () 
             >
               {isWorking ? 'Validating...' : 'Validate & complete'}
             </button>
-            <button className="rounded-lg border border-disputed px-4 py-2 text-sm font-medium text-disputed transition-colors hover:bg-disputed/10">
-              Dispute
+            <button
+              onClick={handleDispute}
+              disabled={isWorking}
+              className="rounded-lg border border-disputed px-4 py-2 text-sm font-medium text-disputed transition-colors hover:bg-disputed/10 disabled:opacity-50"
+            >
+              {isWorking ? 'Disputing...' : 'Dispute'}
             </button>
           </div>
         )}
 
         {task.status === 'Completed' && (
           <p className="text-sm text-verified">Task completed. Bounty paid, reputation updated.</p>
+        )}
+
+        {task.status === 'Disputed' && (
+          <p className="text-sm text-disputed">
+            Task disputed. Note: the escrowed bounty remains locked in the contract; disputing does not currently
+            trigger a refund.
+          </p>
         )}
       </div>
     </div>
