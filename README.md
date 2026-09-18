@@ -31,33 +31,65 @@ but because each language fits a different part of the problem.
 ```
 /contracts
   /solidity   AgentRelayIdentity, AgentRelayReputation, AgentRelayEscrow
-  /stylus     agentrelay-validation (proof verification)
-/frontend     minimal UI: register, post/claim tasks, validate, view reputation
+              plus a Foundry test suite covering the full lifecycle,
+              access control, and known limitations
+  /stylus     agentrelay-validation, proof verification in Rust
+/agentrelay-frontend  Vite and React app: register agents, post and claim
+                      tasks, submit proof, validate, view reputation
+/scripts      end to end test scripts run against the live deployment
 ```
 
 ## Status
 
-`ValidationContract` (Stylus) is deployed, activated, and verified working
-on Arbitrum Sepolia: signature recovery correctly validates genuine proofs
-and rejects tampered ones (tested via `scripts/test-validation-contract.sh`).
+The full system is deployed, tested, and working end to end on Arbitrum
+Sepolia, proven through both automated tests and live transactions, not
+just one or the other.
 
-The Solidity contracts (`AgentRelayIdentity`, `AgentRelayReputation`,
-`AgentRelayEscrow`) are written but not yet deployed. Frontend has not been
-started, by design, until the contracts are stable. See commit history for
-progress.
+- `ValidationContract` (Stylus): deployed, activated, and verified. Signature
+  recovery correctly validates genuine proofs and rejects tampered ones,
+  tested via `scripts/test-validation-contract.sh`.
+- Solidity contracts: 18 Foundry tests passing, covering the full task
+  lifecycle, access control, and the dispute path.
+- Frontend: built and working against the live contracts. The complete
+  flow (register agents, post a task with an escrowed bounty, claim it,
+  submit a real signed proof, validate through the Stylus contract, confirm
+  payout and reputation update) has been run successfully through the
+  actual UI, not only via scripts.
+
+Two issues found during testing have since been fixed and redeployed:
+`postTask` and `claimTask` did not check that the caller owned the agent
+identity it claimed to act as, and `disputeTask` did not refund the
+escrowed bounty. Both are now enforced onchain and covered by tests.
 
 ## Deployed contracts (Arbitrum Sepolia)
 
-| Contract               | Address                                       |
-|------------------------|-----------------------------------------------|
+| Contract             | Address                                       |
+|-----------------------|-----------------------------------------------|
 | AgentRelayIdentity     | `0x36953CbD5745291de7B91ce126eD238340c79434`  |
-| AgentRelayEscrow       | `0x0B14D5bB0244A1D0A291318A9bf298579928a2C3`  |
-| AgentRelayReputation   | `0x6F4da14334DAc0619838c74168E5A5aDAfd3C076`  |
+| AgentRelayEscrow       | `0xc148c4D951a8c15C1527d39171B2316ce2eB656d`  |
+| AgentRelayReputation   | `0x69A437f4C9D04Df206Cd435F8f603323f0d6aE67`  |
 | ValidationContract     | `0xBF795A0cD8403A4802be33F1EFB53836FB89632B`  |
+
+## Running it
+
+**Contracts**
+```
+cd contracts/solidity
+forge test -vv
+```
+
+**Frontend**
+```
+cd agentrelay-frontend
+npm install
+cp .env.example .env
+# fill in a throwaway testnet signer key and, optionally, a dedicated RPC URL
+npm run dev
+```
 
 ## Standards referenced
 
 - ERC-8004 (Trustless Agents): identity, reputation, and validation registries
   for autonomous agents. This project implements a simplified version of the
-  Validation Registry, not the full spec, scoped to fit a solo three-week build.
-- x402: payment settlement pattern for agent-to-agent transactions.
+  Validation Registry, not the full spec, scoped to fit a solo build.
+- x402: payment settlement pattern for agent to agent transactions.
