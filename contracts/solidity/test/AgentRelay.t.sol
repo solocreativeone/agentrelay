@@ -263,11 +263,7 @@ contract AgentRelayTest is Test {
         assertEq(uint8(status), uint8(AgentRelayEscrow.TaskStatus.Disputed));
     }
 
-    /// @notice Documents a known limitation rather than asserting desired
-    /// behaviour: disputing does not refund the escrowed bounty, so the
-    /// funds stay locked in the contract. Worth fixing before any real
-    /// deployment; this test exists so the gap is visible, not hidden.
-    function test_DisputeTask_DoesNotRefundBounty_KnownLimitation() public {
+    function test_DisputeTask_RefundsBountyToRequester() public {
         (uint256 requesterAgentId, uint256 claimantAgentId) = _registerBothAgents();
         uint256 taskId = _postTask(requesterAgentId);
 
@@ -281,8 +277,8 @@ contract AgentRelayTest is Test {
         vm.prank(requester);
         escrow.disputeTask(taskId);
 
-        assertEq(usdc.balanceOf(requester), requesterBalanceBefore);
-        assertEq(usdc.balanceOf(address(escrow)), BOUNTY);
+        assertEq(usdc.balanceOf(requester), requesterBalanceBefore + BOUNTY);
+        assertEq(usdc.balanceOf(address(escrow)), 0);
     }
 
     // --- Reputation access control ---
@@ -299,22 +295,27 @@ contract AgentRelayTest is Test {
 
     // --- Known gap, documented as a failing expectation ---
 
-    /// @notice There is currently no check that msg.sender owns the agent
-    /// identity it claims to act as, so any address can post or claim a
-    /// task while impersonating any registered agent ID. This test proves
-    /// the gap exists. It should be inverted to expectRevert once an
-    /// ownership check is added to postTask and claimTask.
-    function test_ClaimTask_AllowsImpersonatingAnotherAgent_KnownGap() public {
+    // --- Ownership enforcement (previously a known gap) ---
+
+    function test_ClaimTask_RevertsWhenCallerDoesNotOwnAgent() public {
         (uint256 requesterAgentId, uint256 claimantAgentId) = _registerBothAgents();
         uint256 taskId = _postTask(requesterAgentId);
 
-        // stranger does not own claimantAgentId, yet this succeeds.
+        // stranger does not own claimantAgentId (claimant does).
         vm.prank(stranger);
+        vm.expectRevert(AgentRelayEscrow.NotAgentOwner.selector);
         escrow.claimTask(taskId, claimantAgentId);
+    }
 
-        (, uint256 storedClaimantAgentId,, address storedClaimant,,,,) = escrow.tasks(taskId);
-        assertEq(storedClaimantAgentId, claimantAgentId);
-        assertEq(storedClaimant, stranger);
+    function test_PostTask_RevertsWhenCallerDoesNotOwnAgent() public {
+        (uint256 requesterAgentId,) = _registerBothAgents();
+
+        vm.startPrank(stranger);
+        usdc.mint(stranger, BOUNTY);
+        usdc.approve(address(escrow), BOUNTY);
+        vm.expectRevert(AgentRelayEscrow.NotAgentOwner.selector);
+        escrow.postTask(requesterAgentId, BOUNTY, EXPECTED_RESULT);
+        vm.stopPrank();
     }
 
     // --- Helpers ---

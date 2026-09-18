@@ -8,9 +8,15 @@ import { formatUsdc } from '../lib/format';
 import { StatusBadge } from '../components/StatusBadge';
 
 export function TasksPage({ onSelectTask }: { onSelectTask: (taskId: bigint) => void }) {
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
   const { tasks, isLoading, refetch, refetchTaskList } = useTasks();
   const { agents } = useAgents();
+  // Only agents the connected wallet actually owns can post a task as
+  // that agent, matching the contract's own ownership check. Listing
+  // every registered agent here would let someone pick one they don't
+  // own and hit a revert instead of an informative disabled state.
+  const myAgents = agents.filter((a) => a.owner.toLowerCase() === address?.toLowerCase());
+
   const [showForm, setShowForm] = useState(false);
   const [requesterAgentId, setRequesterAgentId] = useState('');
   const [bounty, setBounty] = useState('');
@@ -57,15 +63,17 @@ export function TasksPage({ onSelectTask }: { onSelectTask: (taskId: bigint) => 
         </div>
         <button
           onClick={() => setShowForm((v) => !v)}
-          disabled={!isConnected || agents.length === 0}
+          disabled={!isConnected || myAgents.length === 0}
           className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-40"
         >
           Post task
         </button>
       </div>
 
-      {agents.length === 0 && isConnected && (
-        <p className="mb-4 text-sm text-text-secondary">Register an agent first before posting a task.</p>
+      {isConnected && myAgents.length === 0 && (
+        <p className="mb-4 text-sm text-text-secondary">
+          Register an agent with this wallet first before posting a task.
+        </p>
       )}
 
       {showForm && (
@@ -77,8 +85,8 @@ export function TasksPage({ onSelectTask }: { onSelectTask: (taskId: bigint) => 
               onChange={(e) => setRequesterAgentId(e.target.value)}
               className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text-primary focus:border-primary focus:outline-none"
             >
-              <option value="">Select an agent</option>
-              {agents.map((a) => (
+              <option value="">Select an agent you own</option>
+              {myAgents.map((a) => (
                 <option key={a.agentId.toString()} value={a.agentId.toString()}>
                   Agent #{a.agentId.toString()}
                 </option>

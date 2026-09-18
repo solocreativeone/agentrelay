@@ -2,8 +2,8 @@
 // If you redeploy any contract, update its address here, nowhere else.
 export const CONTRACTS = {
   identity: '0x36953CbD5745291de7B91ce126eD238340c79434',
-  escrow: '0x0B14D5bB0244A1D0A291318A9bf298579928a2C3',
-  reputation: '0x6F4da14334DAc0619838c74168E5A5aDAfd3C076',
+  escrow: '0xc148c4D951a8c15C1527d39171B2316ce2eB656d',
+  reputation: '0x69A437f4C9D04Df206Cd435F8f603323f0d6aE67',
   validation: '0xBF795A0cD8403A4802be33F1EFB53836FB89632B',
   usdc: '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d',
 } as const;

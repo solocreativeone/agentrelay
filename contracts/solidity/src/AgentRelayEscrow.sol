@@ -29,6 +29,7 @@ contract AgentRelayEscrow {
     error ProofVerificationFailed();
     error AgentNotRegistered();
     error BountyTransferFailed();
+    error NotAgentOwner();
 
     enum TaskStatus {
         Open,
@@ -61,7 +62,7 @@ contract AgentRelayEscrow {
     event TaskClaimed(uint256 indexed taskId, uint256 indexed claimantAgentId);
     event ProofSubmitted(uint256 indexed taskId, bytes proof);
     event TaskCompleted(uint256 indexed taskId, uint256 indexed claimantAgentId, uint256 payout);
-    event TaskDisputed(uint256 indexed taskId);
+    event TaskDisputed(uint256 indexed taskId, uint256 refundedBounty);
 
     constructor(address identityRegistryAddress, address validationContractAddress, address bountyTokenAddress) {
         identityRegistry = AgentRelayIdentity(identityRegistryAddress);
@@ -69,15 +70,23 @@ contract AgentRelayEscrow {
         bountyToken = IERC20(bountyTokenAddress);
     }
 
-    /// @notice Wired once after ReputationRegistry is deployed, since ReputationRegistry
-    ///         needs this contract's address at its own construction time. Deploy order is
-    ///         IdentityRegistry, then TaskEscrow, then ReputationRegistry, then this setter.
+    /// @notice Wired once after AgentRelayReputation is deployed, since it
+    ///         needs this contract's address at its own construction time.
+    ///         Deploy order is Identity, then Escrow, then Reputation, then
+    ///         this setter.
     function setReputationRegistry(address reputationRegistryAddress) external {
         reputationRegistry = AgentRelayReputation(reputationRegistryAddress);
     }
 
+    /// @dev Reverts unless msg.sender actually owns the given agent identity.
+    ///      Without this, any address could post or claim tasks while
+    ///      impersonating an agent it does not control.
+    function _requireOwnsAgent(uint256 agentId) internal view {
+        if (identityRegistry.ownerOf(agentId) != msg.sender) revert NotAgentOwner();
+    }
+
     /// @notice Posts a new task with a bounty held in escrow.
-    /// @param requesterAgentId The identity of the posting agent, must already be registered.
+    /// @param requesterAgentId The identity of the posting agent. Caller must own it.
     /// @param bounty Amount of bountyToken to escrow, requires prior approval.
     /// @param expectedResult A hash or descriptor of what a valid completion proof must match.
     function postTask(uint256 requesterAgentId, uint256 bounty, bytes calldata expectedResult)
@@ -85,6 +94,7 @@ contract AgentRelayEscrow {
         returns (uint256 taskId)
     {
         if (!identityRegistry.isRegistered(requesterAgentId)) revert AgentNotRegistered();
+        _requireOwnsAgent(requesterAgentId);
 
         bool success = bountyToken.transferFrom(msg.sender, address(this), bounty);
         if (!success) revert BountyTransferFailed();
@@ -104,11 +114,12 @@ contract AgentRelayEscrow {
         emit TaskPosted(taskId, requesterAgentId, bounty);
     }
 
-    /// @notice Claims an open task on behalf of a registered agent.
+    /// @notice Claims an open task on behalf of a registered agent the caller owns.
     function claimTask(uint256 taskId, uint256 claimantAgentId) external {
         Task storage task = tasks[taskId];
         if (task.status != TaskStatus.Open) revert TaskNotOpen();
         if (!identityRegistry.isRegistered(claimantAgentId)) revert AgentNotRegistered();
+        _requireOwnsAgent(claimantAgentId);
 
         task.claimantAgentId = claimantAgentId;
         task.claimant = msg.sender;
@@ -159,12 +170,18 @@ contract AgentRelayEscrow {
 
     /// @notice Lets the requester flag a task as disputed instead of validating it,
     ///         for example if the proof is present but the result is wrong.
+    ///         Refunds the escrowed bounty back to the requester, since the
+    ///         claimant never gets paid for disputed work.
     function disputeTask(uint256 taskId) external {
         Task storage task = tasks[taskId];
         if (task.status != TaskStatus.ProofSubmitted) revert ProofNotSubmitted();
         if (msg.sender != task.requester) revert NotTaskRequester();
 
         task.status = TaskStatus.Disputed;
-        emit TaskDisputed(taskId);
+
+        bool success = bountyToken.transfer(task.requester, task.bounty);
+        if (!success) revert BountyTransferFailed();
+
+        emit TaskDisputed(taskId, task.bounty);
     }
 }
