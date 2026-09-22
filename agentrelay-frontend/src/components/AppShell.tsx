@@ -15,9 +15,12 @@ export function AppShell({
   return (
     <div className="flex min-h-screen bg-bg">
       <aside className="flex w-56 flex-col border-r border-border bg-surface px-4 py-6">
-        <div className="mb-8 px-2">
-          <h1 className="font-display text-xl font-semibold text-text-primary">AgentRelay</h1>
-          <p className="mt-1 text-xs text-text-secondary">Arbitrum Sepolia</p>
+        <div className="mb-8 flex items-center gap-2 px-2">
+          <img src="/logo.svg" alt="" className="h-7 w-7" />
+          <div>
+            <h1 className="font-display text-xl font-semibold text-text-primary">AgentRelay</h1>
+            <p className="text-xs text-text-secondary">Arbitrum Sepolia</p>
+          </div>
         </div>
         <nav className="flex flex-col gap-1">
           <NavItem label="Agents" active={page === 'agents'} onClick={() => onNavigate('agents')} />
