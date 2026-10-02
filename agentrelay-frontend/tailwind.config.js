@@ -4,20 +4,42 @@ export default {
   theme: {
     extend: {
       colors: {
-        bg: '#0B0F17',
-        surface: '#141B26',
-        border: '#1F2937',
+        bg: '#080C14',
+        surface: {
+          DEFAULT: '#0F1626',
+          card: '#121B2D',
+          hover: '#182338',
+          subtle: '#0B101C',
+        },
+        border: {
+          DEFAULT: '#1C273C',
+          subtle: '#141D2D',
+          accent: '#2B3D5D',
+        },
         primary: {
-          DEFAULT: '#4C7CF0',
-          hover: '#3E68D6',
+          DEFAULT: '#3B82F6',
+          hover: '#2563EB',
+          muted: 'rgba(59, 130, 246, 0.12)',
         },
-        verified: '#2FBF87',
-        pending: '#F5A623',
-        disputed: '#EF5B5B',
+        verified: {
+          DEFAULT: '#10B981',
+          hover: '#059669',
+          muted: 'rgba(16, 185, 129, 0.12)',
+        },
+        pending: {
+          DEFAULT: '#F59E0B',
+          muted: 'rgba(245, 158, 11, 0.12)',
+        },
+        disputed: {
+          DEFAULT: '#EF4444',
+          muted: 'rgba(239, 68, 68, 0.12)',
+        },
         text: {
-          primary: '#E7ECF3',
-          secondary: '#8B96A5',
+          primary: '#F0F4FA',
+          secondary: '#8797AB',
+          muted: '#52647C',
         },
+        arbitrum: '#28A0F0',
       },
       fontFamily: {
         display: ['"Space Grotesk"', 'sans-serif'],
