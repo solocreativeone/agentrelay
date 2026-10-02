@@ -119,6 +119,39 @@ export const escrowAbi = [
       { name: 'bounty', type: 'uint256', indexed: false },
     ],
   },
+  {
+    type: 'event',
+    name: 'TaskClaimed',
+    inputs: [
+      { name: 'taskId', type: 'uint256', indexed: true },
+      { name: 'claimantAgentId', type: 'uint256', indexed: true },
+    ],
+  },
+  {
+    type: 'event',
+    name: 'ProofSubmitted',
+    inputs: [
+      { name: 'taskId', type: 'uint256', indexed: true },
+      { name: 'proof', type: 'bytes', indexed: false },
+    ],
+  },
+  {
+    type: 'event',
+    name: 'TaskCompleted',
+    inputs: [
+      { name: 'taskId', type: 'uint256', indexed: true },
+      { name: 'claimantAgentId', type: 'uint256', indexed: true },
+      { name: 'payout', type: 'uint256', indexed: false },
+    ],
+  },
+  {
+    type: 'event',
+    name: 'TaskDisputed',
+    inputs: [
+      { name: 'taskId', type: 'uint256', indexed: true },
+      { name: 'refundedBounty', type: 'uint256', indexed: false },
+    ],
+  },
 ] as const;
 
 export const reputationAbi = [
