@@ -2,12 +2,13 @@ import { useEffect, useState, useCallback } from 'react';
 import { usePublicClient, useWatchContractEvent } from 'wagmi';
 import { CONTRACTS, identityAbi, reputationAbi } from '../config/contracts';
 
-// Agent IDs are assigned sequentially starting at 0, so rather than
-// scanning event history (which breaks once the deploy block is more than
-// ~10,000 blocks behind "latest", a limit most RPC providers enforce and
-// that a month-old contract blows past entirely), we just probe IDs
-// directly. isRegistered() is a cheap read with no block-range limit.
-const MAX_CONSECUTIVE_MISSES = 3;
+// Agent IDs are sequential starting at 0. Rather than probing one at a
+// time (each awaiting the previous network round trip before starting
+// the next, which is slow), check a batch of IDs in parallel, then only
+// continue to the next batch if that batch had at least one hit. This
+// keeps the same "no block-range limit" benefit as before while cutting
+// load time roughly by the batch size.
+const BATCH_SIZE = 10;
 const MAX_AGENTS_TO_PROBE = 200n;
 
 export type Agent = {
@@ -27,24 +28,33 @@ export function useAgents() {
   const probeAgentIds = useCallback(async () => {
     if (!publicClient) return;
     const ids: bigint[] = [];
-    let consecutiveMisses = 0;
-    let agentId = 0n;
+    let batchStart = 0n;
 
-    while (consecutiveMisses < MAX_CONSECUTIVE_MISSES && agentId < MAX_AGENTS_TO_PROBE) {
-      const isRegistered = await publicClient.readContract({
-        address: CONTRACTS.identity,
-        abi: identityAbi,
-        functionName: 'isRegistered',
-        args: [agentId],
+    while (batchStart < MAX_AGENTS_TO_PROBE) {
+      const batchIds = Array.from({ length: BATCH_SIZE }, (_, i) => batchStart + BigInt(i));
+      const results = await Promise.all(
+        batchIds.map((agentId) =>
+          publicClient.readContract({
+            address: CONTRACTS.identity,
+            abi: identityAbi,
+            functionName: 'isRegistered',
+            args: [agentId],
+          })
+        )
+      );
+
+      let anyHitInBatch = false;
+      results.forEach((isRegistered, i) => {
+        if (isRegistered) {
+          ids.push(batchIds[i]);
+          anyHitInBatch = true;
+        }
       });
-      if (isRegistered) {
-        ids.push(agentId);
-        consecutiveMisses = 0;
-      } else {
-        consecutiveMisses++;
-      }
-      agentId++;
+
+      if (!anyHitInBatch) break;
+      batchStart += BigInt(BATCH_SIZE);
     }
+
     setAgentIds(ids);
   }, [publicClient]);
 
