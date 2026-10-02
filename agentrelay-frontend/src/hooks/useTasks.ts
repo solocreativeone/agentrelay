@@ -2,14 +2,12 @@ import { useEffect, useState, useCallback } from 'react';
 import { usePublicClient, useWatchContractEvent } from 'wagmi';
 import { CONTRACTS, escrowAbi, TASK_STATUS } from '../config/contracts';
 
-// Task IDs are assigned sequentially starting at 0, same reasoning as
-// useAgents: probe directly rather than scan event history, since that
-// breaks once the deploy block is more than ~10,000 blocks behind
-// "latest". tasks(taskId) never reverts for an unused ID, it returns a
-// zero-initialized struct, so a zero requester address is what marks a
-// slot as not-yet-used, since postTask always requires a real funding
-// transfer from a real msg.sender.
-const MAX_CONSECUTIVE_MISSES = 3;
+// Same reasoning as useAgents: probe IDs in parallel batches instead of
+// one at a time, since sequential probing was the biggest source of
+// slow page loads. tasks(taskId) never reverts for an unused ID, it
+// returns a zero-initialized struct, so a zero requester address marks
+// a slot as not-yet-used.
+const BATCH_SIZE = 10;
 const MAX_TASKS_TO_PROBE = 500n;
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
@@ -34,26 +32,34 @@ export function useTasks() {
   const probeTaskIds = useCallback(async () => {
     if (!publicClient) return;
     const ids: bigint[] = [];
-    let consecutiveMisses = 0;
-    let taskId = 0n;
+    let batchStart = 0n;
 
-    while (consecutiveMisses < MAX_CONSECUTIVE_MISSES && taskId < MAX_TASKS_TO_PROBE) {
-      const data = (await publicClient.readContract({
-        address: CONTRACTS.escrow,
-        abi: escrowAbi,
-        functionName: 'tasks',
-        args: [taskId],
-      })) as readonly [bigint, bigint, string, string, bigint, string, string, number];
+    while (batchStart < MAX_TASKS_TO_PROBE) {
+      const batchIds = Array.from({ length: BATCH_SIZE }, (_, i) => batchStart + BigInt(i));
+      const results = await Promise.all(
+        batchIds.map((taskId) =>
+          publicClient.readContract({
+            address: CONTRACTS.escrow,
+            abi: escrowAbi,
+            functionName: 'tasks',
+            args: [taskId],
+          })
+        )
+      );
 
-      const requester = data[2];
-      if (requester.toLowerCase() !== ZERO_ADDRESS) {
-        ids.push(taskId);
-        consecutiveMisses = 0;
-      } else {
-        consecutiveMisses++;
-      }
-      taskId++;
+      let anyHitInBatch = false;
+      results.forEach((data, i) => {
+        const requester = (data as readonly [bigint, bigint, string, string, bigint, string, string, number])[2];
+        if (requester.toLowerCase() !== ZERO_ADDRESS) {
+          ids.push(batchIds[i]);
+          anyHitInBatch = true;
+        }
+      });
+
+      if (!anyHitInBatch) break;
+      batchStart += BigInt(BATCH_SIZE);
     }
+
     setTaskIds(ids);
   }, [publicClient]);
 
